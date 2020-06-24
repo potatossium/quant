@@ -1,0 +1,59 @@
+
+  '''
+  1.买入机器学习选股策略选出的股票组合；
+  2.间隔20天全部卖出，并更新买入新一轮股票组合。（尚未实现）
+  '''
+
+  ## 初始化函数，设定要操作的股票、基准等等
+  def initialize(context):
+      # 设定沪深300作为基准
+      set_benchmark('000300.XSHG')
+      # True为开启动态复权模式，使用真实价格交易
+      set_option('use_real_price', True) 
+      # 设定成交量比例
+      set_option('order_volume_ratio', 1)
+      # 股票类交易手续费是：买入时佣金万分之三，卖出时佣金万分之三加千分之一印花税, 每笔交易佣金最低扣5块钱
+      set_order_cost(OrderCost(open_tax=0, close_tax=0.001, \
+                               open_commission=0.0003, close_commission=0.0003,\
+                               close_today_commission=0, min_commission=5), type='stock')
+
+      g.days = 0 
+      # 调仓频率
+      g.refresh_rate = 20
+      # 运行函数
+      run_daily(trade, 'every_bar')
+
+  ## 得到股票组合，这里直接取用机器学习选股.ipynb的结果 
+  def check_stocks(context):
+      buylist = ['002714.XSHE', '000876.XSHE', '600990.XSHG', '600584.XSHG', '600779.XSHG',
+         '002157.XSHE', '603288.XSHG', '600261.XSHG', '002299.XSHE', '300347.XSHE',
+         '601038.XSHG', '000401.XSHE', '600004.XSHG', '000651.XSHE', '000858.XSHE']
+
+      return buylist
+
+  ## 交易函数
+  def trade(context):
+      ## 选股
+      stock_list = check_stocks(context)
+
+      if g.days%g.refresh_rate == 0:
+
+          ## 获取持仓列表
+          sell_list = list(context.portfolio.positions.keys())
+          # 如果有持仓，则卖出
+          if len(sell_list) > 0 :
+              for stock in sell_list:
+                  order_target_value(stock, 0)
+
+          ## 平均分配资金
+          Cash = context.portfolio.cash/len(stock_list)
+
+          ## 买入股票
+          for stock in stock_list:
+              order_value(stock, Cash)
+
+          # 天计数加一
+          g.days = 1
+      else:
+          g.days += 1
+
